@@ -455,7 +455,7 @@
             gameOverImage.style.display = 'none'; // Hide image when starting
             scoreDisplay.textContent = 'Score: 0';
 
-            // Sound
+            // Sound - Crucial for mobile to play on user interaction
             playBGM();
 
             // Start the game loop
@@ -579,7 +579,7 @@
             }
         }
 
-        // FIX: Score updates every frame for a smooth, dynamic feel
+        // Score updates every frame for a smooth, dynamic feel
         function updateScore() {
             score++;
             scoreDisplay.textContent = `Score: ${score}`;
@@ -611,7 +611,7 @@
         function gameLoop(timestamp) {
             if (isGameOver) return;
 
-            // FIX: Update score every frame
+            // Update score every frame
             updateScore(); 
             
             // Update game state
@@ -629,18 +629,20 @@
         }
 
         // --- EVENT HANDLERS ---
-        
+
         // Desktop/Laptop Jump: Spacebar
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Space' && isRunning) {
+                e.preventDefault(); // Prevent spacebar from scrolling the page
                 triggerJump();
             }
         });
-        
+
         // Mobile/Touch Jump: Tap anywhere on the game container
-        container.addEventListener('click', (e) => {
-             // Only allow click inside the container to trigger jump
+        container.addEventListener('touchstart', (e) => {
+            // Only allow touch inside the container to trigger jump
             if (isRunning && e.target.id !== 'message-box' && e.target.id !== 'start-button') {
+                e.preventDefault(); // Prevent default touch actions (scrolling/zooming)
                 triggerJump();
             }
         });
@@ -651,10 +653,10 @@
         // --- INITIAL SETUP ---
         // Ensure character starts on the ground
         character.style.bottom = CHAR_BASE_Y + 'px';
-        
+
         // Initial setup for the game container width (for game logic)
-        container.style.width = GAME_WIDTH + 'px';
-        container.style.height = GAME_HEIGHT + 'px';
+        // container.style.width = GAME_WIDTH + 'px'; // Not strictly needed as CSS handles responsive width
+        // container.style.height = GAME_HEIGHT + 'px';
         
     </script>
 </body>
