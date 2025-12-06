@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modi Run - Political Runner</title>
+    <!-- Tailwind CSS for modern, responsive base styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        
+        /* Custom Game Styling */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1e293b; /* Dark background */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            user-select: none; /* Disable text selection */
+        }
+
+        /* Game Container */
+        #game-container {
+            width: 95vw;
+            max-width: 800px; /* Desktop width */
+            height: 400px;
+            border: 8px solid #fcd34d; /* Bright yellow border */
+            background-color: #7dd3fc; /* Sky blue */
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.6), inset 0 0 10px rgba(255, 255, 255, 0.8);
+            cursor: pointer; /* Suggests clicking/tapping */
+        }
+
+        /* Character and Obstacle Styling */
+        #character {
+            /* Sizing adjusted to be double the original size */
+            width: 140px; 
+            height: 180px;
+            position: absolute;
+            bottom: 20px; /* Stands on the ground */
+            left: 50px;
+            background-image: url('https://raw.githubusercontent.com/lambeshreyas/modiRun/main/modi_run.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center bottom;
+            z-index: 10;
+            transition: background-image 0.1s ease-out;
+        }
+
+        .obstacle {
+            position: absolute;
+            bottom: 20px;
+            right: -100px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center bottom;
+            z-index: 5;
+        }
+
+        /* Ground/Horizon Line */
+        #ground {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 20px;
+            background-color: #3f6212; /* Dark green / field color */
+            box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.4);
+            z-index: 1;
+        }
+
+        /* Score Display */
+        #score-display, #high-score-display {
+            font-size: 1.5rem;
+            color: #1f2937;
+            text-shadow: 1px 1px 2px #fff;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            font-weight: 700;
+        }
+
+        #score-display {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+
+        #high-score-display {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+        }
+
+        /* Game Message Box (Start/Game Over) */
+        #message-box {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            z-index: 50;
+        }
+
+        #message-box h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            color: #fcd34d;
+            text-shadow: 2px 2px #be123c;
+        }
+
+        #message-box p {
+            font-size: 1.25rem;
+            margin-bottom: 2rem;
+            font-weight: 300;
+        }
+
+        /* Image styling for game over */
+        #game-over-image {
+            width: 150px;
+            height: auto;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(252, 211, 77, 0.8);
+        }
+
+        .start-button {
+            padding: 12px 30px;
+            background-color: #be123c; /* Red/Maroon */
+            color: white;
+            border: 3px solid #fcd34d;
+            border-radius: 12px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 5px #831843;
+            font-weight: 700;
+        }
+
+        .start-button:hover:not(:disabled) {
+            background-color: #831843;
+        }
+        
+        /* Disabled state for loading */
+        .start-button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+            box-shadow: 0 3px #333;
+            transform: translateY(2px);
+            opacity: 0.7;
+        }
+
+        .start-button:active:not(:disabled) {
+            box-shadow: 0 2px #831843;
+            transform: translateY(3px);
+        }
+
+        /* Responsive adjustments for mobile */
+        @media (max-width: 600px) {
+            #game-container {
+                height: 300px;
+            }
+            #character {
+                /* Adjusted for mobile: still large, but scaled down relative to container */
+                width: 100px;
+                height: 140px;
+                left: 20px;
+                bottom: 20px;
+            }
+            #score-display, #high-score-display {
+                font-size: 1rem;
+            }
+            #message-box h1 {
+                font-size: 2rem;
+            }
+            #message-box p {
+                font-size: 1rem;
+            }
+            .start-button {
+                font-size: 1.2rem;
+                padding: 10px 25px;
+            }
+            #game-over-image {
+                width: 100px;
+            }
+        }
+    </style>
+</head>
+<body ontouchstart="">
+    <div id="game-container">
+        <!-- Game Elements -->
+        <div id="character"></div>
+        <div id="ground"></div>
+        
+        <!-- Score and High Score -->
+        <div id="score-display">Score: 0</div>
+        <div id="high-score-display">High Score: N/A</div>
+        <div id="user-id" class="absolute bottom-0 right-0 text-xs text-white opacity-50 p-1"></div>
+
+        <!-- Start/Game Over Message Box -->
+        <div id="message-box">
+            <!-- New Image for Game Over Screen -->
+            <img id="game-over-image" src="https://raw.githubusercontent.com/lambeshreyas/modiRun/main/modi_namste.png" alt="Modi Namaste" style="display: none;">
+            <h1>Modi Run</h1>
+            <p id="message-text">Loading game data and authentication...</p>
+            <button class="start-button" id="start-button" disabled>Loading...</button>
+        </div>
+    </div>
+    
+    <!-- Audio Elements -->
+    <audio id="bgm" src="https://raw.githubusercontent.com/lambeshreyas/modiRun/main/pehla_nasha_bgm.mp3" loop preload="auto" volume="0.3"></audio>
+    <audio id="game-over-sfx" src="https://raw.githubusercontent.com/lambeshreyas/modiRun/main/game_over.mp3" preload="auto"></audio>
+    <audio id="mamata-sfx" src="https://raw.githubusercontent.com/lambeshreyas/modiRun/main/mamta_sound.mp3" preload="auto"></audio>
+    <audio id="rahul-sfx" src="https://raw.githubusercontent.com/lambeshreyas/modiRun/main/rahul_sound.mp3" preload="auto"></audio>
+
+    <!-- Firebase Imports for High Score Persistence -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Firebase variables will be attached to the window object
+        window.fb = {
+            isReady: false // New flag to track initialization status
+        };
+
+        // 1. Mandatory Global Variables Check
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-modi-run-app';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const startButton = document.getElementById('start-button');
+        const messageText = document.getElementById('message-text');
+
+        // 2. Initializing Firebase
+        if (Object.keys(firebaseConfig).length > 0) {
+            const app = initializeApp(firebaseConfig);
+            window.fb.db = getFirestore(app);
+            window.fb.auth = getAuth(app);
+        } else {
+            console.error("Firebase configuration is missing. High scores will not be saved.");
+            window.fb.db = null;
+        }
+
+        // 3. Authentication Logic and High Score Listener
+        async function setupAuthAndFirestore() {
+            // Returns a promise that resolves when high score listening is active
+            return new Promise(async (resolve) => {
+                if (!window.fb.auth) {
+                    resolve(); // Resolve immediately if auth is unavailable
+                    return;
+                }
+
+                const auth = window.fb.auth;
+                let userId = null;
+
+                // Wait for authentication state to settle
+                await new Promise(resolveAuth => {
+                    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+                        if (user) {
+                            userId = user.uid;
+                            document.getElementById('user-id').textContent = `User: ${userId}`;
+                            window.fb.userId = userId;
+                            resolveAuth();
+                            unsubscribe();
+                        } else if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            try {
+                                const userCredential = await signInWithCustomToken(auth, __initial_auth_token);
+                                userId = userCredential.user.uid;
+                            } catch (error) {
+                                console.error("Custom token sign-in failed. Falling back to anonymous.", error);
+                                await signInAnonymously(auth);
+                            }
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    });
+                });
+
+                // After auth is ready, start listening for high score
+                if (window.fb.db && window.fb.userId) {
+                    const highscoreDocRef = doc(window.fb.db, "artifacts", appId, "users", window.fb.userId, "gameData", "modiRunHighscore");
+                    
+                    // Real-time listener for high score
+                    onSnapshot(highscoreDocRef, (docSnap) => {
+                        // Ensure high score is always initialized
+                        const currentHigh = docSnap.exists() ? (docSnap.data().score || 0) : 0;
+                        window.fb.highScore = currentHigh;
+                        
+                        // Update the UI immediately
+                        document.getElementById('high-score-display').textContent = `High Score: ${window.fb.highScore}`;
+                        
+                        // Resolve the main promise the first time data is received
+                        if (!window.fb.isReady) {
+                            window.fb.isReady = true;
+                            resolve(); 
+                        }
+                    }, (error) => {
+                        console.error("Error listening to high score:", error);
+                        if (!window.fb.isReady) {
+                             window.fb.isReady = true;
+                             resolve();
+                        }
+                    });
+                } else {
+                    // If no Firebase or user ID, resolve immediately
+                    window.fb.isReady = true;
+                    window.fb.highScore = 0; // Set default high score
+                    document.getElementById('high-score-display').textContent = `High Score: 0`;
+                    resolve();
+                }
+            });
+        }
+
+        window.fb.saveHighScore = async (newScore) => {
+            if (!window.fb.db || !window.fb.userId) {
+                console.warn("Attempted to save high score, but Firebase is not ready or configured.");
+                return;
+            }
+
+            const highscoreDocRef = doc(window.fb.db, "artifacts", appId, "users", window.fb.userId, "gameData", "modiRunHighscore");
+            
+            try {
+                // Only save if the new score is strictly greater than the current high score
+                if (newScore > (window.fb.highScore || 0)) {
+                    await setDoc(highscoreDocRef, { score: newScore, date: new Date().toISOString() }, { merge: true });
+                    console.log("New high score saved:", newScore);
+                }
+            } catch (e) {
+                console.error("Error saving document: ", e);
+            }
+        };
+
+        // Start the authentication process and update the button state when complete
+        setupAuthAndFirestore().then(() => {
+            startButton.disabled = false;
+            startButton.textContent = 'Start Game';
+            
+            // Restore original welcome message
+            messageText.innerHTML = "Welcome to the political running game! Jump over obstacles using the **Spacebar** or by **Tapping the screen**.";
+        });
+    </script>
+
+    <!-- Game Logic -->
+    <script>
+        // --- GAME CONSTANTS ---
+        const GAME_WIDTH = 800;
+        const GAME_HEIGHT = 400;
+        const GROUND_HEIGHT = 20;
+        
+        // Character size doubled
+        const CHAR_WIDTH = 140; 
+        const CHAR_HEIGHT = 180;
+        
+        const CHAR_BASE_Y = GROUND_HEIGHT; // Character stands on the ground
+        
+        // Jump mechanics adjusted for larger character
+        const JUMP_HEIGHT = 280; 
+        let verticalVelocity = 30; // Increased initial upward force
+        let gravity = 1.2; // Slightly increased gravity for proportional feel
+
+        // --- GAME ELEMENTS ---
+        const container = document.getElementById('game-container');
+        const character = document.getElementById('character');
+        const scoreDisplay = document.getElementById('score-display');
+        const messageBox = document.getElementById('message-box');
+        const messageText = document.getElementById('message-text');
+        const startButton = document.getElementById('start-button');
+        const gameOverImage = document.getElementById('game-over-image');
+        
+        // --- AUDIO ELEMENTS ---
+        const bgm = document.getElementById('bgm');
+        const gameOverSfx = document.getElementById('game-over-sfx');
+        const mamataSfx = document.getElementById('mamata-sfx');
+        const rahulSfx = document.getElementById('rahul-sfx');
+
+        // --- GAME STATE VARIABLES ---
+        let isRunning = false;
+        let isJumping = false;
+        let isGameOver = true;
+        let score = 0;
+        let gameSpeed = 6; // Initial speed (pixels per frame)
+        let obstacles = [];
+        let lastObstacleTime = 0;
+        let obstacleSpawnInterval = 4000; // Initial 4 seconds delay
+        let frameRequest;
+
+        // --- ASSET MAPPING ---
+        const obstacleAssets = [
+            // Mamata 1 (Large)
+            { type: 'mamata', img: 'https://raw.githubusercontent.com/lambeshreyas/modiRun/main/mamta_kick.png', sfx: mamataSfx, w: 120, h: 180 },
+            // Mamata 2 (Large)
+            { type: 'mamata', img: 'https://raw.githubusercontent.com/lambeshreyas/modiRun/main/mamta_punch.png', sfx: mamataSfx, w: 140, h: 160 },
+            // Rahul 1 (Reduced) - relatively small
+            { type: 'rahul', img: 'https://raw.githubusercontent.com/lambeshreyas/modiRun/main/rahul_kick.png', sfx: rahulSfx, w: 80, h: 110 },
+            // Rahul 2 (Reduced) - relatively small
+            { type: 'rahul', img: 'https://raw.githubusercontent.com/lambeshreyas/modiRun/main/rahul_punch.png', sfx: rahulSfx, w: 95, h: 105 },
+        ];
+
+        // --- SOUND CONTROL FUNCTIONS ---
+        function playBGM() {
+            bgm.volume = 0.3;
+            // Attempt to play BGM, needs user interaction for modern browsers
+            bgm.play().catch(e => console.log("BGM playback blocked:", e));
+        }
+
+        function stopBGM() {
+            bgm.pause();
+            bgm.currentTime = 0;
+        }
+
+        function playSFX(audioElement) {
+            // Clone the node to allow overlapping playback of the same SFX
+            const clone = audioElement.cloneNode();
+            clone.volume = 1.0;
+            clone.play().catch(e => console.log("SFX playback blocked:", e));
+        }
+
+        // --- CORE GAME MECHANICS ---
+
+        function startGame() {
+            // Guard against starting if Firebase setup is still pending (though button is disabled)
+            if (!window.fb.isReady && window.fb.db) {
+                console.warn("Firebase still loading. Cannot start yet.");
+                return;
+            }
+            if (isRunning) return;
+
+            // Reset state
+            isRunning = true;
+            isGameOver = false;
+            score = 0;
+            gameSpeed = 6;
+            obstacleSpawnInterval = 4000; 
+            
+            obstacles.forEach(obs => obs.element.remove());
+            obstacles = [];
+            
+            // Initial character position
+            character.style.bottom = CHAR_BASE_Y + 'px';
+            character.style.backgroundImage = `url('https://raw.githubusercontent.com/lambeshreyas/modiRun/main/modi_run.png')`;
+
+            // UI updates
+            messageBox.style.display = 'none';
+            gameOverImage.style.display = 'none'; // Hide image when starting
+            scoreDisplay.textContent = 'Score: 0';
+
+            // Sound
+            playBGM();
+
+            // Start the game loop
+            requestAnimationFrame(gameLoop);
+        }
+
+        function triggerJump() {
+            if (isGameOver || isJumping) return;
+
+            isJumping = true;
+            verticalVelocity = 30; // Use the adjusted jump velocity
+        }
+
+        function spawnObstacle() {
+            const now = Date.now();
+            if (now - lastObstacleTime < obstacleSpawnInterval || !isRunning) return;
+            
+            lastObstacleTime = now;
+            
+            // Choose a random obstacle asset
+            const assetIndex = Math.floor(Math.random() * obstacleAssets.length);
+            const asset = obstacleAssets[assetIndex];
+
+            // 1. Create Element
+            const obstacleElement = document.createElement('div');
+            obstacleElement.className = 'obstacle';
+            obstacleElement.style.backgroundImage = `url('${asset.img}?raw=true')`;
+            obstacleElement.style.width = asset.w + 'px';
+            obstacleElement.style.height = asset.h + 'px';
+            
+            // Ensure the image fits correctly
+            obstacleElement.style.bottom = CHAR_BASE_Y + 'px';
+
+            // 2. Add to DOM and Obstacle Array
+            container.appendChild(obstacleElement);
+            obstacles.push({
+                element: obstacleElement,
+                x: GAME_WIDTH,
+                y: CHAR_BASE_Y,
+                width: asset.w,
+                height: asset.h,
+                assetType: asset.type // 'mamata' or 'rahul'
+            });
+
+            // 3. Play SFX
+            playSFX(asset.sfx);
+
+            // 4. Decrease interval to increase difficulty (but keep a minimum interval)
+            obstacleSpawnInterval = Math.max(400, obstacleSpawnInterval - 10);
+            
+            // 5. Increase game speed
+            gameSpeed = Math.min(15, gameSpeed + 0.05);
+        }
+
+        function checkCollision() {
+            // Collision detection logic remains the same
+            const charX = 50; 
+            const charY = parseFloat(character.style.bottom); 
+            
+            for (let i = 0; i < obstacles.length; i++) {
+                const obs = obstacles[i];
+                const obsX = parseFloat(obs.element.style.right);
+                
+                // Calculate position from left edge for comparison
+                const obsLeft = GAME_WIDTH - obsX - obs.width;
+                const charLeft = charX;
+                
+                // 1. Horizontal Overlap
+                const horizontalOverlap = charLeft < (obsLeft + obs.width) && (charLeft + CHAR_WIDTH) > obsLeft;
+                
+                // 2. Vertical Overlap
+                const charTop = charY + CHAR_HEIGHT;
+                const obsTop = obs.height + CHAR_BASE_Y; 
+
+                const verticalOverlap = charY < obsTop;
+
+                if (horizontalOverlap && verticalOverlap) {
+                    gameOver();
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function updateCharacter() {
+            if (!isJumping) return;
+
+            // Apply gravity/velocity
+            const newY = parseFloat(character.style.bottom) + verticalVelocity;
+            
+            // Update velocity
+            verticalVelocity -= gravity;
+
+            if (newY <= CHAR_BASE_Y) {
+                // Landed on the ground
+                character.style.bottom = CHAR_BASE_Y + 'px';
+                isJumping = false;
+                verticalVelocity = 0;
+            } else {
+                character.style.bottom = newY + 'px';
+            }
+        }
+
+        function updateObstacles() {
+            // Remove obstacles that have left the screen and update position for remaining
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obs = obstacles[i];
+                // Obstacles use the 'right' property in CSS
+                const currentRight = parseFloat(obs.element.style.right || -100);
+                const newRight = currentRight + gameSpeed;
+
+                if (newRight > GAME_WIDTH) {
+                    // Obstacle is off screen, remove it
+                    obs.element.remove();
+                    obstacles.splice(i, 1);
+                } else {
+                    obs.element.style.right = newRight + 'px';
+                    // Update internal x position (from right edge)
+                    obs.x = GAME_WIDTH - newRight - obs.width; 
+                }
+            }
+        }
+
+        // FIX: Score updates every frame for a smooth, dynamic feel
+        function updateScore() {
+            score++;
+            scoreDisplay.textContent = `Score: ${score}`;
+        }
+
+        function gameOver() {
+            isRunning = false;
+            isGameOver = true;
+            cancelAnimationFrame(frameRequest);
+
+            // Sound
+            stopBGM();
+            playSFX(gameOverSfx);
+
+            // Save High Score (Function handles comparison internally)
+            if (window.fb && window.fb.saveHighScore) {
+                window.fb.saveHighScore(score);
+            }
+
+            // UI Update: Show the image and the game over message
+            gameOverImage.style.display = 'block'; 
+            messageText.innerHTML = `**GAME OVER!** You scored **${score}** points!`;
+            messageBox.style.display = 'flex';
+            startButton.textContent = 'Play Again';
+        }
+
+
+        // --- MAIN LOOP ---
+        function gameLoop(timestamp) {
+            if (isGameOver) return;
+
+            // FIX: Update score every frame
+            updateScore(); 
+            
+            // Update game state
+            updateCharacter();
+            updateObstacles();
+            spawnObstacle();
+
+            // Check for game end
+            if (checkCollision()) {
+                return;
+            }
+            
+            // Continue loop
+            frameRequest = requestAnimationFrame(gameLoop);
+        }
+
+        // --- EVENT HANDLERS ---
+        
+        // Desktop/Laptop Jump: Spacebar
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && isRunning) {
+                triggerJump();
+            }
+        });
+        
+        // Mobile/Touch Jump: Tap anywhere on the game container
+        container.addEventListener('click', (e) => {
+             // Only allow click inside the container to trigger jump
+            if (isRunning && e.target.id !== 'message-box' && e.target.id !== 'start-button') {
+                triggerJump();
+            }
+        });
+
+        // Start Button Handler
+        startButton.addEventListener('click', startGame);
+
+        // --- INITIAL SETUP ---
+        // Ensure character starts on the ground
+        character.style.bottom = CHAR_BASE_Y + 'px';
+        
+        // Initial setup for the game container width (for game logic)
+        container.style.width = GAME_WIDTH + 'px';
+        container.style.height = GAME_HEIGHT + 'px';
+        
+    </script>
+</body>
+</html>
