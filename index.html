@@ -37,7 +37,6 @@
 
         /* Character and Obstacle Styling */
         #character {
-            /* Sizing adjusted to be double the original size */
             width: 140px; 
             height: 180px;
             position: absolute;
@@ -173,7 +172,6 @@
                 height: 300px;
             }
             #character {
-                /* Adjusted for mobile: still large, but scaled down relative to container */
                 width: 100px;
                 height: 140px;
                 left: 20px;
@@ -233,7 +231,8 @@
 
         // Global Firebase variables will be attached to the window object
         window.fb = {
-            isReady: false // New flag to track initialization status
+            isReady: false, // Flag to track initialization status
+            highScore: 0 // Default high score
         };
 
         // 1. Mandatory Global Variables Check
@@ -303,7 +302,7 @@
                         // Resolve the main promise the first time data is received
                         if (!window.fb.isReady) {
                             window.fb.isReady = true;
-                            resolve(); 
+                            resolve();  
                         }
                     }, (error) => {
                         console.error("Error listening to high score:", error);
@@ -315,7 +314,6 @@
                 } else {
                     // If no Firebase or user ID, resolve immediately
                     window.fb.isReady = true;
-                    window.fb.highScore = 0; // Set default high score
                     document.getElementById('high-score-display').textContent = `High Score: 0`;
                     resolve();
                 }
@@ -354,20 +352,17 @@
     <!-- Game Logic -->
     <script>
         // --- GAME CONSTANTS ---
-        const GAME_WIDTH = 800;
-        const GAME_HEIGHT = 400;
         const GROUND_HEIGHT = 20;
         
-        // Character size doubled
+        // Character size
         const CHAR_WIDTH = 140; 
         const CHAR_HEIGHT = 180;
         
         const CHAR_BASE_Y = GROUND_HEIGHT; // Character stands on the ground
         
         // Jump mechanics adjusted for larger character
-        const JUMP_HEIGHT = 280; 
-        let verticalVelocity = 30; // Increased initial upward force
-        let gravity = 1.2; // Slightly increased gravity for proportional feel
+        let verticalVelocity = 30; // Initial upward force
+        let gravity = 1.2; // Gravity applied
 
         // --- GAME ELEMENTS ---
         const container = document.getElementById('game-container');
@@ -397,13 +392,13 @@
 
         // --- ASSET MAPPING ---
         const obstacleAssets = [
-            // Mamata 1 (Large)
+            // Mamata (Large)
             { type: 'mamata', img: 'https://raw.githubusercontent.com/lambeshreyas/modiRun/main/mamta_kick.png', sfx: mamataSfx, w: 120, h: 180 },
-            // Mamata 2 (Large)
+            // Mamata (Large)
             { type: 'mamata', img: 'https://raw.githubusercontent.com/lambeshreyas/modiRun/main/mamta_punch.png', sfx: mamataSfx, w: 140, h: 160 },
-            // Rahul 1 (Reduced) - relatively small
+            // Rahul (Small)
             { type: 'rahul', img: 'https://raw.githubusercontent.com/lambeshreyas/modiRun/main/rahul_kick.png', sfx: rahulSfx, w: 80, h: 110 },
-            // Rahul 2 (Reduced) - relatively small
+            // Rahul (Small)
             { type: 'rahul', img: 'https://raw.githubusercontent.com/lambeshreyas/modiRun/main/rahul_punch.png', sfx: rahulSfx, w: 95, h: 105 },
         ];
 
@@ -429,7 +424,7 @@
         // --- CORE GAME MECHANICS ---
 
         function startGame() {
-            // Guard against starting if Firebase setup is still pending (though button is disabled)
+            // Check Firebase status before allowing start
             if (!window.fb.isReady && window.fb.db) {
                 console.warn("Firebase still loading. Cannot start yet.");
                 return;
@@ -446,7 +441,7 @@
             obstacles.forEach(obs => obs.element.remove());
             obstacles = [];
             
-            // Initial character position
+            // Initial character position and appearance
             character.style.bottom = CHAR_BASE_Y + 'px';
             character.style.backgroundImage = `url('https://raw.githubusercontent.com/lambeshreyas/modiRun/main/modi_run.png')`;
 
@@ -455,7 +450,7 @@
             gameOverImage.style.display = 'none'; // Hide image when starting
             scoreDisplay.textContent = 'Score: 0';
 
-            // Sound - Crucial for mobile to play on user interaction
+            // Sound
             playBGM();
 
             // Start the game loop
@@ -493,8 +488,7 @@
             container.appendChild(obstacleElement);
             obstacles.push({
                 element: obstacleElement,
-                x: GAME_WIDTH,
-                y: CHAR_BASE_Y,
+                x: container.clientWidth, // Initial X position (left edge)
                 width: asset.w,
                 height: asset.h,
                 assetType: asset.type // 'mamata' or 'rahul'
@@ -503,38 +497,77 @@
             // 3. Play SFX
             playSFX(asset.sfx);
 
-            // 4. Decrease interval to increase difficulty (but keep a minimum interval)
+            // 4. Increase difficulty by decreasing interval and increasing speed
             obstacleSpawnInterval = Math.max(400, obstacleSpawnInterval - 10);
-            
-            // 5. Increase game speed
             gameSpeed = Math.min(15, gameSpeed + 0.05);
         }
 
+        /**
+         * Checks for collision, requiring a 50% overlap on both X and Y axes.
+         * This uses screen coordinates (Y increasing downwards) for consistent AABB calculation.
+         * @returns {boolean} True if the required overlap is met.
+         */
         function checkCollision() {
-            // Collision detection logic remains the same
-            const charX = 50; 
-            const charY = parseFloat(character.style.bottom); 
+            const currentGameWidth = container.clientWidth;
+            const currentGameHeight = container.clientHeight;
+
+            // Character Bounding Box (BB) relative to container top-left (0,0), Y increasing downwards
+            const charX = 50; // Character's fixed left position
+            const charY_bottomCSS = parseFloat(character.style.bottom); // Distance from ground (bottom of container)
             
+            const charBB = {
+                x: charX,
+                // Calculate Y (Top edge of character, relative to container top=0)
+                y: currentGameHeight - CHAR_HEIGHT - charY_bottomCSS, 
+                width: CHAR_WIDTH,
+                height: CHAR_HEIGHT,
+            };
+
+            const charRight = charBB.x + charBB.width;
+            const charBottom = charBB.y + charBB.height;
+
             for (let i = 0; i < obstacles.length; i++) {
                 const obs = obstacles[i];
-                const obsX = parseFloat(obs.element.style.right);
-                
-                // Calculate position from left edge for comparison
-                const obsLeft = GAME_WIDTH - obsX - obs.width;
-                const charLeft = charX;
-                
-                // 1. Horizontal Overlap
-                const horizontalOverlap = charLeft < (obsLeft + obs.width) && (charLeft + CHAR_WIDTH) > obsLeft;
-                
-                // 2. Vertical Overlap
-                const charTop = charY + CHAR_HEIGHT;
-                const obsTop = obs.height + CHAR_BASE_Y; 
+                const obsRightCSS = parseFloat(obs.element.style.right || 0);
 
-                const verticalOverlap = charY < obsTop;
+                // Obstacle BB relative to container top-left (0,0), Y increasing downwards
+                const obsBB = {
+                    // Obstacle's left edge
+                    x: currentGameWidth - obsRightCSS - obs.width, 
+                    // Obstacle's top edge (assuming obstacles are always on CHAR_BASE_Y = 20px)
+                    y: currentGameHeight - obs.height - CHAR_BASE_Y, 
+                    width: obs.width,
+                    height: obs.height,
+                };
 
-                if (horizontalOverlap && verticalOverlap) {
-                    gameOver();
-                    return true;
+                const obsRight = obsBB.x + obsBB.width;
+                const obsBottom = obsBB.y + obsBB.height;
+
+                // 1. Initial AABB check (broad phase)
+                const isOverlapping = (
+                    charRight > obsBB.x && // Character right is past obstacle left
+                    charBB.x < obsRight &&  // Character left is before obstacle right
+                    charBottom > obsBB.y && // Character bottom is past obstacle top
+                    charBB.y < obsBottom    // Character top is before obstacle bottom
+                );
+
+                if (isOverlapping) {
+                    // 2. Calculate actual overlap distance
+                    const overlapX = Math.max(0, Math.min(charRight, obsRight) - Math.max(charBB.x, obsBB.x));
+                    const overlapY = Math.max(0, Math.min(charBottom, obsBottom) - Math.max(charBB.y, obsBB.y));
+
+                    // 3. Calculate required 50% overlap threshold
+                    // Requires 50% of the smaller dimension of the two colliding objects
+                    const requiredOverlapX = 0.5 * Math.min(charBB.width, obsBB.width);
+                    const requiredOverlapY = 0.5 * Math.min(charBB.height, obsBB.height);
+
+                    // 4. Check if the actual overlap meets the 50% threshold
+                    const collisionMet = (overlapX >= requiredOverlapX) && (overlapY >= requiredOverlapY);
+
+                    if (collisionMet) {
+                        gameOver();
+                        return true;
+                    }
                 }
             }
             return false;
@@ -544,7 +577,8 @@
             if (!isJumping) return;
 
             // Apply gravity/velocity
-            const newY = parseFloat(character.style.bottom) + verticalVelocity;
+            const currentBottom = parseFloat(character.style.bottom);
+            const newY = currentBottom + verticalVelocity;
             
             // Update velocity
             verticalVelocity -= gravity;
@@ -567,14 +601,12 @@
                 const currentRight = parseFloat(obs.element.style.right || -100);
                 const newRight = currentRight + gameSpeed;
 
-                if (newRight > GAME_WIDTH) {
+                if (newRight > container.clientWidth) {
                     // Obstacle is off screen, remove it
                     obs.element.remove();
                     obstacles.splice(i, 1);
                 } else {
                     obs.element.style.right = newRight + 'px';
-                    // Update internal x position (from right edge)
-                    obs.x = GAME_WIDTH - newRight - obs.width; 
                 }
             }
         }
@@ -646,6 +678,14 @@
                 triggerJump();
             }
         });
+        
+        // Mouse Click Jump
+        container.addEventListener('click', (e) => {
+            // Only allow click inside the container to trigger jump
+            if (isRunning && e.target.id !== 'message-box' && e.target.id !== 'start-button') {
+                triggerJump();
+            }
+        });
 
         // Start Button Handler
         startButton.addEventListener('click', startGame);
@@ -653,10 +693,6 @@
         // --- INITIAL SETUP ---
         // Ensure character starts on the ground
         character.style.bottom = CHAR_BASE_Y + 'px';
-
-        // Initial setup for the game container width (for game logic)
-        // container.style.width = GAME_WIDTH + 'px'; // Not strictly needed as CSS handles responsive width
-        // container.style.height = GAME_HEIGHT + 'px';
         
     </script>
 </body>
